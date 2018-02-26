@@ -3,6 +3,7 @@ FROM debian:stretch-slim
 LABEL maintainer="NGINX Docker Maintainers <docker-maint@nginx.com>"
 
 ENV NGINX_VERSION 1.12.2-1~stretch
+ENV NGINX_VERSION2 1.12.2
 ENV NJS_VERSION   1.12.2.0.1.14-1~stretch
 
 RUN set -x \
@@ -28,6 +29,7 @@ RUN set -x \
 		nginx-module-xslt=${NGINX_VERSION} \
 		nginx-module-geoip=${NGINX_VERSION} \
 		nginx-module-image-filter=${NGINX_VERSION} \
+		nginx-module-njs=${NJS_VERSION} \
 		nginx-module-njs=${NJS_VERSION} \
 	" \
 	&& case "$dpkgArch" in \
@@ -92,8 +94,19 @@ RUN set -x \
 RUN ln -sf /dev/stdout /var/log/nginx/access.log \
 	&& ln -sf /dev/stderr /var/log/nginx/error.log
 
+RUN apt-get update && apt-get install -y wget supervisor shibboleth-sp2-utils sudo
+RUN mkdir /tmpmod \
+    && cd /tmpmod \
+    && wget http://hg.nginx.org/pkg-oss/archive/tip.tar.gz \
+    && tar -xzvf tip.tar.gz \
+    && cd pkg-oss-07820065095a \
+    && ./build_module.sh -v $NGINX_VERSION2 https://github.com/nginx-shib/nginx-http-shibboleth.git \
+    && ./build_module.sh -v $NGINX_VERSION2 https://github.com/openresty/headers-more-nginx-module.git \
+
+
 EXPOSE 80
 
 STOPSIGNAL SIGTERM
 
+#CMD ["/usr/bin/supervisord"]
 CMD ["nginx", "-g", "daemon off;"]

@@ -5,7 +5,7 @@
 
 Vagrant.configure(2) do |config|
   config.vm.provider "virtualbox" do |v|
-      v.memory = 2048
+      v.memory = 512
   end
   config.vm.hostname = 'docker-nginx' ### <<--- SET THIS HOSTNAME IN RELATION TO YOUR PROJECT ###
   config.vm.define "barge"

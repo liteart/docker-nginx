@@ -49,7 +49,8 @@ RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
 		--with-compat \
 		--with-file-aio \
 		--with-http_v2_module \
-		--add-module=spnego-http-auth-nginx-module \
+		--add-module=nginx-http-shibboleth \
+		--add-module=headers-more-nginx-module \
 	" \
 	&& addgroup -S nginx \
 	&& adduser -D -S -h /var/cache/nginx -s /sbin/nologin -G nginx nginx \
@@ -67,7 +68,6 @@ RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
 		gd-dev \
 		geoip-dev \
 		git \
-        krb5-dev \
 	&& curl -fSL https://nginx.org/download/nginx-$NGINX_VERSION.tar.gz -o nginx.tar.gz \
 	&& curl -fSL https://nginx.org/download/nginx-$NGINX_VERSION.tar.gz.asc  -o nginx.tar.gz.asc \
 #	&& export GNUPGHOME="$(mktemp -d)" \
@@ -89,7 +89,8 @@ RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
 #	&& mv spnego-http-auth-nginx-module /usr/src/nginx-$NGINX_VERSION/
 	&& rm nginx.tar.gz \
 	&& cd /usr/src/nginx-$NGINX_VERSION \
-	&& git clone https://github.com/stnoonan/spnego-http-auth-nginx-module.git spnego-http-auth-nginx-module \
+	&& git clone https://github.com/nginx-shib/nginx-http-shibboleth.git \
+	&& git clone https://github.com/openresty/headers-more-nginx-module.git \
 	&& ./configure $CONFIG --with-debug \
 	&& make -j$(getconf _NPROCESSORS_ONLN) \
 	&& mv objs/nginx objs/nginx-debug \
@@ -140,6 +141,70 @@ RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
 	# forward request and error logs to docker log collector
 	&& ln -sf /dev/stdout /var/log/nginx/access.log \
 	&& ln -sf /dev/stderr /var/log/nginx/error.log
+
+
+#Install Shibboleth-Sp
+RUN cd /tmp \
+    && apk add --update bash apache2 apache2-ssl alpine-sdk openssl openssl-dev boost-dev curl-dev \
+    \
+    && curl -L -o boost_1_52_0.tar.gz http://sourceforge.net/projects/boost/files/boost/1.52.0/boost_1_52_0.tar.gz/download \
+    && tar -xvf boost_1_52_0.tar.gz \
+    && cd boost_1_52_0 \
+    && ./boostrap.sh \
+    && ./b2 install \
+     \
+    && cd /tmp \
+    &&  wget http://shibboleth.net/downloads/log4shib/latest/log4shib-1.0.9.tar.gz \
+    && tar -xvf log4shib-1.0.9.tar.gz \
+    &&  cd log4shib-1.0.9 \
+    && ./configure --disable-static --disable-doxygen --prefix=/opt/shibboleth-sp CXXFLAGS="-std=c++11" \
+    && make \
+    && make install \
+     \
+    && wget http://www.apache.org/dist/xerces/c/3/sources/xerces-c-3.1.2.tar.gz \
+    && tar -xvf xerces-c-3.1.2.tar.gz \
+    && cd xerces-c-3.1.2 \
+    && ./configure --prefix=/opt/shibboleth-sp --disable-netaccessor-libcurl \
+    && make \
+    && make install \
+     \
+    && wget http://www.apache.org/dist/santuario/c-library/xml-security-c-1.7.3.tar.gz \
+    && tar -xvf xml-security-c-1.7.3.tar.gz \
+    && cd xml-security-c-1.7.3 \
+    && ./configure --without-xalan --disable-static --prefix=/opt/shibboleth-sp --with-xerces=/opt/shibboleth-sp \
+    && make \
+    && make install \
+     \
+    && wget http://shibboleth.net/downloads/c++-opensaml/latest/xmltooling-1.5.6.tar.gz \
+    && tar -xvf xmltooling-1.5.6.tar.gz \
+    && cd xmltooling-1.5.6 \
+    && ./configure --with-log4shib=/opt/shibboleth-sp --prefix=/opt/shibboleth-sp -C \
+    && make \
+    && make install \
+     \
+    && wget http://shibboleth.net/downloads/c++-opensaml/latest/opensaml-2.5.5.tar.gz \
+    && tar -xvf opensaml-2.5.5.tar.gz \
+    && cd opensaml-2.5.5 \
+    && ./configure --with-log4shib=/opt/shibboleth-sp --prefix=/opt/shibboleth-sp -C \
+    && make \
+    && make install \
+     \
+    && wget http://shibboleth.net/downloads/service-provider/latest/shibboleth-sp-2.5.5.tar.gz \
+    && tar -xvf shibboleth-sp-2.5.5.tar.gz \
+    && cd shibboleth-sp-2.5.5 \
+    && ./configure --with-log4shib=/opt/shibboleth-sp --prefix=/opt/shibboleth-sp \
+    && make \
+    && make install \
+    && mkdir /etc/shibboleth-sp
+
+COPY shibboleth /opt/shibboleth-sp
+    #Run shibd as:  /opt/shibboleth-sp/sbin/shibd -f
+
+
+
+#Install Supervisor
+RUN apk update && apk add supervisor
+COPY supervisor/shibboleth.conf /etc/supervisor/conf.d/shibboleth.conf
 
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY nginx.vh.default.conf /etc/nginx/conf.d/default.conf

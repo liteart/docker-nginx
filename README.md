@@ -10,7 +10,13 @@ specificially in [docker-library/docs/nginx](https://github.com/docker-library/d
 
 # SHU NOTES
 
-- http://www.itadmintools.com/2011/07/creating-kerberos-keytab-files.html
-- https://github.com/stnoonan/spnego-http-auth-nginx-module
-- ktutil: apk update && apk add krb5 <-- includes ktutil
-- configure keytab on windows with ktpass: https://www.ibm.com/support/knowledgecenter/en/SSAW57_8.5.5/com.ibm.websphere.nd.doc/ae/tsec_kerb_create_spn.html
+- https://github.com/nginx-shib/nginx-http-shibboleth/blob/master/CONFIG.rst
+- https://github.com/openresty/headers-more-nginx-module (will be used to make sure header spoofing is not possible)
+- https://github.com/nginx-shib/nginx-http-shibboleth (shibboleth module)
+
+-https://github.com/jnyryan/vagrant-shibboleth-sp-nginx/blob/master/etc/supervisor/shib.conf (shibboleth sp supervisord config)
+- https://github.com/HarrisonSong/shibboleth_setup_with_nginx_on_ubuntu
+
+
+- shibboleth konfigurieren mit debian: https://www.tcg.stanford.edu/2017/09/using-shibboleth-with-nginx/dock
+- Supervisor COnfig: https://gotechnies.com/docker-supervisor-tutorial/
